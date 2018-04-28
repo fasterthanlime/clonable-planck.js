@@ -4015,8 +4015,6 @@ function World(def) {
     this.m_positionIterations = def.positionIterations;
     this.m_t = 0;
     this.m_stepCount = 0;
-    // Broad-phase callback.
-    this.addPair = this.createContact.bind(this);
 }
 
 /**
@@ -4614,7 +4612,7 @@ World.prototype.step = function(timeStep, velocityIterations, positionIterations
  * Call this method to find new contacts.
  */
 World.prototype.findNewContacts = function() {
-    this.m_broadPhase.updatePairs(this.addPair);
+    this.m_broadPhase.updatePairs(this.createContact.bind(this));
 };
 
 /**
@@ -5113,7 +5111,6 @@ function BroadPhase() {
     this.m_tree = new DynamicTree();
     this.m_proxyCount = 0;
     this.m_moveBuffer = [];
-    this.queryCallback = this.queryCallback.bind(this);
 }
 
 /**
@@ -5277,7 +5274,7 @@ BroadPhase.prototype.updatePairs = function(addPairCallback) {
         // we don't fail to create a pair that may touch later.
         var fatAABB = this.m_tree.getFatAABB(this.m_queryProxyId);
         // Query tree, create pairs and add them pair buffer.
-        this.m_tree.query(fatAABB, this.queryCallback);
+        this.m_tree.query(fatAABB, this.queryCallback.bind(this));
     }
 };
 

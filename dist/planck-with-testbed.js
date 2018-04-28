@@ -224,7 +224,6 @@ planck.testbed = function(opts, callback) {
             drawHash = "";
             return true;
         });
-        viewer.scale(1, -1);
         stage.background(testbed.background);
         stage.viewbox(testbed.width, testbed.height);
         stage.pin("alignX", -.5);
@@ -253,6 +252,10 @@ planck.testbed = function(opts, callback) {
             y: 0
         };
         viewer.attr("spy", true).on(Stage.Mouse.START, function(point) {
+            point = {
+                x: point.x,
+                y: -point.y
+            };
             if (targetBody) {
                 return;
             }
@@ -269,12 +272,20 @@ planck.testbed = function(opts, callback) {
                 world.createJoint(mouseJoint);
             }
         }).on(Stage.Mouse.MOVE, function(point) {
+            point = {
+                x: point.x,
+                y: -point.y
+            };
             if (mouseJoint) {
                 mouseJoint.setTarget(point);
             }
             mouseMove.x = point.x;
             mouseMove.y = point.y;
         }).on(Stage.Mouse.END, function(point) {
+            point = {
+                x: point.x,
+                y: -point.y
+            };
             if (mouseJoint) {
                 world.destroyJoint(mouseJoint);
                 mouseJoint = null;
@@ -285,6 +296,10 @@ planck.testbed = function(opts, callback) {
                 targetBody = null;
             }
         }).on(Stage.Mouse.CANCEL, function(point) {
+            point = {
+                x: point.x,
+                y: -point.y
+            };
             if (mouseJoint) {
                 world.destroyJoint(mouseJoint);
                 mouseJoint = null;
@@ -413,8 +428,8 @@ Viewer.prototype.renderWorld = function(world) {
                     f.ui.__lastX = p.x;
                     f.ui.__lastY = p.y;
                     f.ui.__lastR = r;
-                    f.ui.offset(p.x, p.y);
-                    f.ui.rotate(r);
+                    f.ui.offset(p.x, -p.y);
+                    f.ui.rotate(-r);
                 }
             }
         }
@@ -433,9 +448,9 @@ Viewer.prototype.renderWorld = function(world) {
         }
         if (j.ui) {
             var cx = (a.x + b.x) * .5;
-            var cy = (a.y + b.y) * .5;
+            var cy = (-a.y + -b.y) * .5;
             var dx = a.x - b.x;
-            var dy = a.y - b.y;
+            var dy = -a.y - -b.y;
             var d = Math.sqrt(dx * dx + dy * dy);
             j.ui.width(d);
             j.ui.rotate(Math.atan2(dy, dx));
@@ -484,7 +499,7 @@ Viewer.prototype.drawCircle = function(shape, options) {
         ctx.strokeStyle = options.strokeStyle;
         ctx.stroke();
     });
-    var image = Stage.image(texture).offset(shape.m_p.x - cx, shape.m_p.y - cy);
+    var image = Stage.image(texture).offset(shape.m_p.x - cx, -shape.m_p.y - cy);
     var node = Stage.create().append(image);
     return node;
 };
@@ -509,9 +524,10 @@ Viewer.prototype.drawEdge = function(edge, options) {
         ctx.stroke();
     });
     var minX = Math.min(v1.x, v2.x);
-    var minY = Math.min(v1.y, v2.y);
+    var minY = Math.min(-v1.y, -v2.y);
     var image = Stage.image(texture);
-    image.rotate(Math.atan2(dy, dx));
+    console.log(-Math.atan2(dy, dx));
+    image.rotate(-Math.atan2(dy, dx));
     image.offset(minX - lw, minY - lw);
     var node = Stage.create().append(image);
     return node;
@@ -530,8 +546,8 @@ Viewer.prototype.drawPolygon = function(shape, options) {
         var v = vertices[i];
         minX = Math.min(minX, v.x);
         maxX = Math.max(maxX, v.x);
-        minY = Math.min(minY, v.y);
-        maxY = Math.max(maxY, v.y);
+        minY = Math.min(minY, -v.y);
+        maxY = Math.max(maxY, -v.y);
     }
     var width = maxX - minX;
     var height = maxY - minY;
@@ -542,7 +558,7 @@ Viewer.prototype.drawPolygon = function(shape, options) {
         for (var i = 0; i < vertices.length; ++i) {
             var v = vertices[i];
             var x = v.x - minX + lw;
-            var y = v.y - minY + lw;
+            var y = -v.y - minY + lw;
             if (i == 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         }
         if (vertices.length > 2) {
@@ -577,8 +593,8 @@ Viewer.prototype.drawChain = function(shape, options) {
         var v = vertices[i];
         minX = Math.min(minX, v.x);
         maxX = Math.max(maxX, v.x);
-        minY = Math.min(minY, v.y);
-        maxY = Math.max(maxY, v.y);
+        minY = Math.min(minY, -v.y);
+        maxY = Math.max(maxY, -v.y);
     }
     var width = maxX - minX;
     var height = maxY - minY;
@@ -589,7 +605,7 @@ Viewer.prototype.drawChain = function(shape, options) {
         for (var i = 0; i < vertices.length; ++i) {
             var v = vertices[i];
             var x = v.x - minX + lw;
-            var y = v.y - minY + lw;
+            var y = -v.y - minY + lw;
             if (i == 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         }
         if (vertices.length > 2) {}
@@ -3314,7 +3330,6 @@ function World(def) {
     this.m_positionIterations = def.positionIterations;
     this.m_t = 0;
     this.m_stepCount = 0;
-    this.addPair = this.createContact.bind(this);
 }
 
 World.prototype.getBodyList = function() {
@@ -3701,7 +3716,7 @@ World.prototype.step = function(timeStep, velocityIterations, positionIterations
 };
 
 World.prototype.findNewContacts = function() {
-    this.m_broadPhase.updatePairs(this.addPair);
+    this.m_broadPhase.updatePairs(this.createContact.bind(this));
 };
 
 World.prototype.createContact = function(proxyA, proxyB) {
@@ -4036,7 +4051,6 @@ function BroadPhase() {
     this.m_tree = new DynamicTree();
     this.m_proxyCount = 0;
     this.m_moveBuffer = [];
-    this.queryCallback = this.queryCallback.bind(this);
 }
 
 BroadPhase.prototype.getUserData = function(proxyId) {
@@ -4128,7 +4142,7 @@ BroadPhase.prototype.updatePairs = function(addPairCallback) {
             continue;
         }
         var fatAABB = this.m_tree.getFatAABB(this.m_queryProxyId);
-        this.m_tree.query(fatAABB, this.queryCallback);
+        this.m_tree.query(fatAABB, this.queryCallback.bind(this));
     }
 };
 
